@@ -1,0 +1,142 @@
+{% extends 'django_elastico_vuejs/base.html' %}
+
+{% block content %}
+    <div id="article">
+        <div id="search-section">
+            <div class="input-group">
+                <input type="text" v-model="search_form.search_input" class="form-control"
+                       placeholder="Search articles...">
+                <div class="input-group-append">
+                    <button @click="searchArticle()" class="btn btn-outline-primary" type="button">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <br>
+                <h4>Articles List</h4>
+                <br>
+                <div v-for="result in search_results">
+                    <div class="card mb-3">
+                        <div class="card-header">[[result.title]]</div>
+                        <div class="card-body text-secondary">
+                            <p class="card-text">[[result.body]]</p>
+                            <span v-for="tag in result.tags">[[tag]]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <div id="add-article">
+            <br>
+            <h4>New article</h4>
+            <br>
+            <form class='card p-3 bg-light'>
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" v-model="article_form.title" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="body">Body</label>
+                    <textarea id="body" v-model="article_form.body" cols="30" rows="5" class="form-control"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <input type="text" id="tags" v-model="article_form.tags_input" class="form-control">
+                    <small id="tagsHelp" class="form-text text-muted">Comma-separated tags</small>
+                </div>
+            </form>
+
+        </div>
+        <br>
+        <div>
+            <button @click="addArticle(), cleanFields()" class="btn btn-outline-primary">
+                Add Article
+            </button>
+        </div>
+
+
+        <br>
+        <br>
+    </div>
+    <script>
+        axios.defaults.xsrfHeaderName = "X-CSRFToken";
+        axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
+
+        var url = "";
+        var vm = new Vue({
+            delimiters: ['[[', ']]'],
+            el: '#article',
+            data() {
+                return {
+                    article_form: {
+                        title: "",
+                        body: "",
+                        tags_input: ""
+                    },
+                    search_form: {
+                        search_input: ""
+                    },
+                    search_results: []
+                }
+            },
+            methods: {
+                getTags: function () {
+                    return this.article_form.tags_input.split(",");
+                },
+                sanitizeInput: function () {
+                    let input = JSON.parse(JSON.stringify(this.article_form));
+                    input.tags = this.getTags();
+
+                    delete input.tags_input;
+
+                    return input;
+                },
+                addArticle: function () {
+                    let input = this.sanitizeInput();
+                    axios.post('/api/articles/',
+                        input,
+                        {
+                            headers: {
+                                'Content-type': 'application/json'
+                            }
+                        })
+                        .then(console.log("Success!"))
+                        .then(_ => this.resetSearch())
+                        .then(() => this.search_results.push(input));
+                },
+                cleanFields: function () {
+                    Vue.set(this.$data.article_form, "title", "");
+                    Vue.set(this.$data.article_form, "body", "");
+                    Vue.set(this.$data.article_form, "tags_input", "");
+                },
+                searchArticle: function () {
+                    this.searchArticles(this.search_form);
+                },
+                searchArticles: function (searchInput) {
+                    axios.post('/api/articles/searchV2/',
+                        searchInput,
+                        {
+                            headers: {
+                                'Content-type': 'application/json'
+                            }
+                        }).then(response => {
+                        this.search_results = response.data;
+                        console.log(this.search_results);
+                    }).catch(err => console.log(err))
+                },
+                listArticles: function () {
+                    let input = {};
+                    this.searchArticles(input);
+                },
+                resetSearch: function () {
+                    Vue.set(this.$data.search_form, "search_input", "");
+                }
+            },
+            created: function () {
+                this.listArticles();
+            }
+        });
+    </script>
+{% endblock content %}
